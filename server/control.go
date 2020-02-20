@@ -29,8 +29,8 @@ import (
 	"github.com/fatedier/frp/models/msg"
 	plugin "github.com/fatedier/frp/models/plugin/server"
 	"github.com/fatedier/frp/server/controller"
+	"github.com/fatedier/frp/server/metrics"
 	"github.com/fatedier/frp/server/proxy"
-	"github.com/fatedier/frp/server/stats"
 	"github.com/fatedier/frp/utils/util"
 	"github.com/fatedier/frp/utils/version"
 	"github.com/fatedier/frp/utils/xlog"
@@ -91,9 +91,6 @@ type Control struct {
 	// plugin manager
 	pluginManager *plugin.Manager
 
-	// stats collector to store stats info of clients and proxies
-	statsCollector stats.Collector
-
 	// login message
 	loginMsg *msg.Login
 
@@ -148,7 +145,6 @@ func NewControl(
 	rc *controller.ResourceController,
 	pxyManager *proxy.ProxyManager,
 	pluginManager *plugin.Manager,
-	statsCollector stats.Collector,
 	ctlConn net.Conn,
 	loginMsg *msg.Login,
 	serverCfg config.ServerCommonConf,
@@ -162,7 +158,6 @@ func NewControl(
 		rc:              rc,
 		pxyManager:      pxyManager,
 		pluginManager:   pluginManager,
-		statsCollector:  statsCollector,
 		conn:            ctlConn,
 		loginMsg:        loginMsg,
 		sendCh:          make(chan msg.Message, 10),
@@ -374,16 +369,12 @@ func (ctl *Control) stoper() {
 	for _, pxy := range ctl.proxies {
 		pxy.Close()
 		ctl.pxyManager.Del(pxy.GetName())
-		ctl.statsCollector.Mark(stats.TypeCloseProxy, &stats.CloseProxyPayload{
-			Name:      pxy.GetName(),
-			ProxyType: pxy.GetConf().GetBaseInfo().ProxyType,
-		})
+		metrics.Server.CloseProxy(pxy.GetName(), pxy.GetConf().GetBaseInfo().ProxyType)
 	}
 
 	ctl.allShutdown.Done()
 	xl.Info("client exit success")
-
-	ctl.statsCollector.Mark(stats.TypeCloseClient, &stats.CloseClientPayload{})
+	metrics.Server.CloseClient()
 }
 
 // block until Control closed
@@ -444,10 +435,7 @@ func (ctl *Control) manager() {
 				} else {
 					resp.RemoteAddr = remoteAddr
 					xl.Info("new proxy [%s] success", m.ProxyName)
-					ctl.statsCollector.Mark(stats.TypeNewProxy, &stats.NewProxyPayload{
-						Name:      m.ProxyName,
-						ProxyType: m.ProxyType,
-					})
+					metrics.Server.NewProxy(m.ProxyName, m.ProxyType)
 				}
 				ctl.sendCh <- resp
 			case *msg.CloseProxy:
@@ -472,7 +460,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 
 	// NewProxy will return a interface Proxy.
 	// In fact it create different proxies by different proxy type, we just call run() here.
-	pxy, err := proxy.NewProxy(ctl.ctx, ctl.runId, ctl.rc, ctl.statsCollector, ctl.poolCount, ctl.GetWorkConn, pxyConf, ctl.serverCfg)
+	pxy, err := proxy.NewProxy(ctl.ctx, ctl.runId, ctl.rc, ctl.poolCount, ctl.GetWorkConn, pxyConf, ctl.serverCfg)
 	if err != nil {
 		return remoteAddr, err
 	}
@@ -534,9 +522,6 @@ func (ctl *Control) CloseProxy(closeMsg *msg.CloseProxy) (err error) {
 	delete(ctl.proxies, closeMsg.ProxyName)
 	ctl.mu.Unlock()
 
-	ctl.statsCollector.Mark(stats.TypeCloseProxy, &stats.CloseProxyPayload{
-		Name:      pxy.GetName(),
-		ProxyType: pxy.GetConf().GetBaseInfo().ProxyType,
-	})
+	metrics.Server.CloseProxy(pxy.GetName(), pxy.GetConf().GetBaseInfo().ProxyType)
 	return
 }
