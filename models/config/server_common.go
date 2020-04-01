@@ -101,7 +101,8 @@ type ServerCommonConf struct {
 	// Token specifies the authorization token used to authenticate keys
 	// received from clients. Clients must have a matching token to be
 	// authorized to use the server. By default, this value is "".
-	Token string `json:"token"`
+	// Token string `json:"token"`
+	Tokens map[string]string
 	// SubDomainHost specifies the domain that will be attached to sub-domains
 	// requested by the client when using Vhost proxying. For example, if this
 	// value is set to "frps.com" and the client requested the subdomain
@@ -161,7 +162,7 @@ func GetDefaultServerConf() ServerCommonConf {
 		LogLevel:          "info",
 		LogMaxDays:        3,
 		DisableLogColor:   false,
-		Token:             "",
+		Tokens:            make(map[string]string),
 		SubDomainHost:     "",
 		TcpMux:            true,
 		AllowPorts:        make(map[int]struct{}),
@@ -314,7 +315,8 @@ func UnmarshalServerConfFromIni(content string) (cfg ServerCommonConf, err error
 		cfg.DisableLogColor = true
 	}
 
-	cfg.Token, _ = conf.Get("common", "token")
+	// cfg.Token, _ = conf.Get("common", "token")
+	UnmarshalTokensFromIni(conf, &cfg)
 
 	if allowPortsStr, ok := conf.Get("common", "allow_ports"); ok {
 		// e.g. 1000-2000,2001,2002,3000-4000
@@ -399,6 +401,30 @@ func UnmarshalPluginsFromIni(sections ini.File, cfg *ServerCommonConf) {
 	}
 }
 
+func UnmarshalTokensFromIni(sections ini.File, cfg *ServerCommonConf) {
+	for name, section := range sections {
+		// if strings.HasPrefix(name, "plugin.") {
+		if name == "tokens" {
+			for user, token := range section {
+				cfg.Tokens[user] = token
+			}
+		}
+	}
+}
+
 func (cfg *ServerCommonConf) Check() (err error) {
 	return
+}
+
+func (cfg *ServerCommonConf) GetUserToken(user string) (string, bool) {
+	if len(cfg.Tokens) == 0 {
+		return "", true
+	}
+
+	token, hasToken := cfg.Tokens[user]
+	if !hasToken {
+		token, hasToken = cfg.Tokens["*"]
+	}
+
+	return token, hasToken
 }

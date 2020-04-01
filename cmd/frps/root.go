@@ -82,7 +82,7 @@ func init() {
 	rootCmd.PersistentFlags().Int64VarP(&logMaxDays, "log_max_days", "", 3, "log max days")
 	rootCmd.PersistentFlags().BoolVarP(&disableLogColor, "disable_log_color", "", false, "disable log color in console")
 
-	rootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "auth token")
+	rootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "common auth token")
 	rootCmd.PersistentFlags().StringVarP(&subDomainHost, "subdomain_host", "", "", "subdomain host")
 	rootCmd.PersistentFlags().StringVarP(&allowPorts, "allow_ports", "", "", "allow ports")
 	rootCmd.PersistentFlags().Int64VarP(&maxPortsPerClient, "max_ports_per_client", "", 0, "max ports per client")
@@ -171,7 +171,7 @@ func parseServerCommonCfgFromCmd() (cfg config.ServerCommonConf, err error) {
 	cfg.LogFile = logFile
 	cfg.LogLevel = logLevel
 	cfg.LogMaxDays = logMaxDays
-	cfg.Token = token
+	cfg.Tokens["*"] = token
 	cfg.SubDomainHost = subDomainHost
 	if len(allowPorts) > 0 {
 		// e.g. 1000-2000,2001,2002,3000-4000

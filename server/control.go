@@ -294,7 +294,9 @@ func (ctl *Control) writer() {
 	defer ctl.allShutdown.Start()
 	defer ctl.writerShutdown.Done()
 
-	encWriter, err := crypto.NewWriter(ctl.conn, []byte(ctl.serverCfg.Token))
+	token, _ := ctl.serverCfg.GetUserToken(ctl.loginMsg.User)
+	encWriter, err := crypto.NewWriter(ctl.conn, []byte(token))
+	// encWriter, err := crypto.NewWriter(ctl.conn, []byte(ctl.serverCfg.Token))
 	if err != nil {
 		xl.Error("crypto new writer error: %v", err)
 		ctl.allShutdown.Start()
@@ -325,7 +327,9 @@ func (ctl *Control) reader() {
 	defer ctl.allShutdown.Start()
 	defer ctl.readerShutdown.Done()
 
-	encReader := crypto.NewReader(ctl.conn, []byte(ctl.serverCfg.Token))
+	token, _ := ctl.serverCfg.GetUserToken(ctl.loginMsg.User)
+	encReader := crypto.NewReader(ctl.conn, []byte(token))
+	// encReader := crypto.NewReader(ctl.conn, []byte(ctl.serverCfg.Token))
 	for {
 		if m, err := msg.ReadMsg(encReader); err != nil {
 			if err == io.EOF {
@@ -468,6 +472,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 	if err != nil {
 		return
 	}
+	pxyConf.GetBaseInfo().Token, _ = ctl.serverCfg.GetUserToken(ctl.loginMsg.User)
 
 	// NewProxy will return a interface Proxy.
 	// In fact it create different proxies by different proxy type, we just call run() here.

@@ -133,6 +133,8 @@ type BaseProxyConf struct {
 	// meta info for each proxy
 	Metas map[string]string `json:"metas"`
 
+    Token string
+
 	LocalSvrConf
 	HealthCheckConf
 }

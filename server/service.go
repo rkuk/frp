@@ -399,7 +399,9 @@ func (svr *Service) RegisterControl(ctlConn net.Conn, loginMsg *msg.Login) (err 
 	}
 
 	// Check auth.
-	if util.GetAuthKey(svr.cfg.Token, loginMsg.Timestamp) != loginMsg.PrivilegeKey {
+	// if util.GetAuthKey(svr.cfg.Token, loginMsg.Timestamp) != loginMsg.PrivilegeKey {
+    token, hasToken := svr.cfg.GetUserToken(loginMsg.User)
+	if !hasToken || util.GetAuthKey(token, loginMsg.Timestamp) != loginMsg.PrivilegeKey {
 		err = fmt.Errorf("authorization failed")
 		return
 	}
